@@ -1,4 +1,3 @@
-/* Map of GeoJSON data from MegaCities.geojson */
 //declare map var in global scope
 var map;
 //function to instantiate the Leaflet map
@@ -22,43 +21,55 @@ function createMap(){
     getData();
 };
 
-function onEachFeature(feature, layer) {
-    //no property named popupContent; instead, create html string with all properties
-    var popupContent = "";
-    if (feature.properties) {
-        //loop to add feature property names and values to html string
-        for (var property in feature.properties){
-            popupContent += "<p>" + property + ": " + feature.properties[property] + "</p>";
-        }
-        layer.bindPopup(popupContent);
+
+//calculate the radius of each proportional symbol
+function calcPropRadius(attValue) {
+    return Math.pow(attValue, 0.3) * 0.15;
+}
+
+
+//Step 3: Add circle markers for point features to the map
+function createPropSymbols(data){
+
+    //Step 4: Determine which attribute to visualize with proportional symbols
+    var attribute = "Recreati_2";
+
+    //create marker options
+    var geojsonMarkerOptions = {
+        fillColor: "#f8c20fff",
+        color: "#ff7300ff",
+        weight: 1,
+        opacity: 1,
+        fillOpacity: 0.8,
+        radius: 8
     };
+
+    L.geoJson(data, {
+        pointToLayer: function (feature, latlng) {
+            //Step 5: For each feature, determine its value for the selected attribute
+            var attValue = Number(feature.properties[attribute]);
+
+            //Step 6: Give each feature's circle marker a radius based on its attribute value
+            geojsonMarkerOptions.radius = calcPropRadius(attValue);
+
+            //create circle markers
+            return L.circleMarker(latlng, geojsonMarkerOptions);
+        }
+    }).addTo(map);
 };
 
+
+//Step 2: Import GeoJSON data
 function getData(){
     //load the data
     fetch("data/natparks.geojson")
         .then(function(response){
             return response.json();
         })
-    .then(function(json){            
-            //create marker options
-            var geojsonMarkerOptions = {
-                radius: 5,
-                fillColor: "#fdda65ff",
-                color: "#000",
-                weight: 1,
-                opacity: 1,
-                fillOpacity: 0.8
-            };
-
-            L.geoJson(json, {
-                pointToLayer: function (feature, latlng){
-                    return L.circleMarker(latlng, geojsonMarkerOptions);
-                },
-                onEachFeature: onEachFeature
-            }).addTo(map);
-        
-        })  
+        .then(function(json){
+            //call function to create proportional symbols
+            createPropSymbols(json);
+        })
 };
 
 document.addEventListener('DOMContentLoaded',createMap)
