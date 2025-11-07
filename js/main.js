@@ -28,9 +28,9 @@ function calcPropRadius(attValue) {
 }
 
 //function to convert markers to circle markers
-function pointToLayer(feature, latlng){
+function pointToLayer(feature, latlng, attributes){
     //Determine which attribute to visualize with proportional symbols
-    var attribute = "Recreati_2";
+    var attribute = attributes[0];
 
     //create marker options
     var options = {
@@ -50,24 +50,137 @@ function pointToLayer(feature, latlng){
     var layer = L.circleMarker(latlng, options);
 
     //build popup content string
-    var popupContent = "<p><b><h2>" + feature.properties.UNIT_NAME + "</h2></b>" + "</p><p><b>Park Type:  </b>" + feature.properties.UNIT_TYPE +"</p><p><b>Recreation Visits Total:  </b>" + feature.properties[attribute] + "</p>";
+    var popupContent = "<p><b><h2>" + feature.properties.UNIT_NAME + "</h2></b>" + "</p><p><b>Park Type:  </b>" + feature.properties.UNIT_TYPE +"</p><p><b>Recreation Visits: </b>" + feature.properties[attribute] + "</p>";
 
     //bind the popup to the circle marker
     layer.bindPopup(popupContent, {
         offset: new L.Point(0,-options.radius) 
     });
 
+    console.log(attributes);
     //return the circle marker to the L.geoJson pointToLayer option
     return layer;
 };
 
 
 //Add circle markers for point features to the map
-function createPropSymbols(data){
+function createPropSymbols(data, attributes){
     //create a Leaflet GeoJSON layer and add it to the map
     L.geoJson(data, {
-        pointToLayer: pointToLayer
+        pointToLayer: function(feature, latlng){
+            return pointToLayer(feature, latlng, attributes);
+        }
     }).addTo(map);
+};
+
+function updatePropSymbols(attribute){
+    map.eachLayer(function(layer){
+        if (layer.feature && layer.feature.properties[attribute]){
+
+            var props = layer.feature.properties;
+
+            var radius = calcPropRadius(props[attribute]);
+            layer.setRadius(radius);
+
+            var popupContent = "<p><b><h2>" + props.UNIT_NAME + "</h2></b>" +
+                "</p><p><b>Park Type:  </b>" + props.UNIT_TYPE +
+                "</p><p><b>Recreation Visits: </b>" + props[attribute] + "</p>";
+
+            popup = layer.getPopup();            
+            popup.setContent(popupContent).update();
+        };
+    });
+};
+
+
+function getCleanName(attribute){
+    const map = {
+        "AnnualTota": "Annual Total",
+        "JanuaryRec": "January",
+        "FebruaryRe": "February",
+        "MarchRecre": "March",
+        "AprilRecre": "April",
+        "MayRecreat": "May",
+        "JuneRecrea": "June",
+        "JulyRecrea": "July",
+        "AugustRecr": "August",
+        "SeptemberR": "September",
+        "OctoberRec": "October",
+        "NovemberRe": "November",
+        "DecemberRe": "December"
+    };
+
+    return map[attribute] || attribute;
+}
+
+function updateLabel(attribute){
+    document.querySelector("#attribute-label").innerHTML =
+        "<h1>" + getCleanName(attribute) + "</h1>";
+}
+
+function createSequenceControls(attributes){
+    //create range input element (slider)
+    var slider = "<input class='range-slider' type='range'></input>";
+    document.querySelector("#forward").insertAdjacentHTML('beforebegin',slider);
+
+    //set slider attributes
+    document.querySelector(".range-slider").max = 12;
+    document.querySelector(".range-slider").min = 0;
+    document.querySelector(".range-slider").value = 0;
+    document.querySelector(".range-slider").step = 1;
+
+    document.querySelector('#reverse').insertAdjacentHTML('beforeend',"<img src='img/reverse.png'>")
+    document.querySelector('#forward').insertAdjacentHTML('beforeend',"<img src='img/forward.png'>")
+
+    document.querySelectorAll('.step').forEach(function(step){
+        step.addEventListener("click", function(){
+
+            var index = Number(document.querySelector('.range-slider').value);
+
+            if (step.id == 'forward'){
+                index++;
+                index = index > 12 ? 0 : index;
+            } else if (step.id == 'reverse'){
+                index--;
+                index = index < 0 ? 12 : index;
+            };
+
+            document.querySelector('.range-slider').value = index;
+            updatePropSymbols(attributes[index]);
+            updateLabel(attributes[index]);
+        })
+    })
+
+};  
+
+
+function processData(data){
+    var attributes = [];
+
+    var months = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
+
+    var properties = data.features[0].properties;
+
+    for (var attribute in properties) {
+        if (attribute.indexOf("Annual") > -1) {
+            attributes.push(attribute);
+        }
+    }
+
+    for (var attribute in properties) {
+        for (var i = 0; i < months.length; i++) {
+            if (attribute.indexOf(months[i]) > -1) {
+                attributes.push(attribute);
+                break;
+            }
+        }
+    }
+
+    console.log(attributes);
+    return attributes;
 };
 
 
@@ -79,8 +192,14 @@ function getData(){
             return response.json();
         })
         .then(function(json){
+            //create an attributes array
+            var attributes = processData(json);
             //call function to create proportional symbols
-            createPropSymbols(json);
+            createPropSymbols(json, attributes);
+            //call the function to create the slider.
+            createSequenceControls(attributes);
+            //calls the uipdate label function.
+            updateLabel(attributes[0]);
         })
 };
 
