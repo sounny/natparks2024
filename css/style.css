@@ -5,32 +5,49 @@
     margin: 0 auto;
 }
 
-#panel {
-    width: 35%;               
-    margin: 20px auto;
-    padding: 20px;
-
+.sequence-control-container {  
+    width: 350px;  
+    background-color: rgba(255,255,255,0.8);  
+    padding: 5px;
     display: flex;
-    justify-content: center;
     align-items: center;
-    gap: 20px;
-}
+    justify-content: space-between;
+    border: solid gray 1px;
+    border-radius: 4px;
+}  
 
 .step {
-    width: 50px;                
-    height: 50px;
+    width: 35px;                
+    height: 35px;
     display: flex;
     justify-content: center;
     align-items: center;
+    cursor: pointer;
 }
 
 .step img {
-    width: 75%;                
+    width: 70%; 
     height: auto;
 }
 
 .range-slider {
-    width: 70%;                 
+    flex-grow: 1;
+    margin: 0 10px;
+}
+
+.legend-control-container {
+    background-color: rgba(255, 255, 255, 0.8); 
+    padding: 8px 20px;
+    border: 1px solid gray;                    
+    border-radius: 4px;                         
+    font-size: 18px;                           
+    font-weight: bold;
+    text-align: center;
+    line-height: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-width: 150px;                           
 }
 
 

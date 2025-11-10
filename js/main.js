@@ -101,31 +101,66 @@ function updatePropSymbols(attribute){
 };
 
 
-//Function to update the label for the current attribute
-function updateLabel(attribute){
-    document.querySelector("#attribute-label").innerHTML =
-        "<h1>" + getCleanName(attribute) + "</h1>";
+//Create the legend control
+function createLegend(attributes){
+    var LegendControl = L.Control.extend({
+        options: {
+            position: 'bottomright'
+        },
+        onAdd: function () {
+            var container = L.DomUtil.create('div', 'legend-control-container');
+            //add temporal legend div to container
+            container.innerHTML = `
+                <div id="legend-attribute" style="font-weight:bold; font-size:16px;"></div>
+            `;
+            // Legend dynamic value
+            container.insertAdjacentHTML(
+                "beforeend",
+                "<div id='legend-attribute' style='font-weight:bold;'></div>"
+            );
+            // Initialize with first attribute
+            container.querySelector("#legend-attribute").textContent =
+                getCleanName(attributes[0]);
+            //return containter div
+            return container;
+        }
+    });
+
+    map.addControl(new LegendControl());
 }
 
 
-//Function to create the sequence controls.
-function createSequenceControls(attributes){
-    //create range input element (slider)
-    var slider = "<input class='range-slider' type='range'></input>";
-    document.querySelector("#forward").insertAdjacentHTML('beforebegin',slider);
-    // Add images to buttons
-    document.querySelector('#reverse').insertAdjacentHTML('beforeend',"<img src='img/reverse.png'>");
-    document.querySelector('#forward').insertAdjacentHTML('beforeend',"<img src='img/forward.png'>");
-    //Cache the slider and buttons
+//Create new sequence controls
+function createSequenceControls(attributes){   
+    var SequenceControl = L.Control.extend({
+        options: {
+            position: 'bottomleft'
+        },
+            onAdd: function () {
+            // create the control container div with a particular class name
+            var container = L.DomUtil.create('div', 'sequence-control-container');
+            //add elements to the container
+            container.insertAdjacentHTML('beforeend', '<button class="step" id="reverse" title="Reverse"><img src="img/reverse.png"></button>'); 
+            container.insertAdjacentHTML('beforeend', '<input class="range-slider" type="range">')
+            container.insertAdjacentHTML('beforeend', '<button class="step" id="forward" title="Forward"><img src="img/forward.png"></button>');
+            //disable any mouse event listeners for the container
+            L.DomEvent.disableClickPropagation(container);
+            //return the container div
+            return container;
+        }
+    });
+    //add the sequence control to the map
+    map.addControl(new SequenceControl());  
+    //add functionality to the sequence control elements
     var rangeslider = document.querySelector(".range-slider");
-    var forwardBtn = document.querySelector("#forward");
     var reverseBtn = document.querySelector("#reverse");
-    //Set slider attributes
+    var forwardBtn = document.querySelector("#forward");
+    //Event listener for the range slider
     rangeslider.max = attributes.length - 1;
-    rangeslider.min = 0;
-    rangeslider.value = 0;
+    rangeslider.min = 0; 
+    rangeslider.value = 0; 
     rangeslider.step = 1;
-    //Add event listeners for buttons
+    //Input event for the range slider
     document.querySelectorAll('.step').forEach(function(step){
         step.addEventListener("click", function(){
             //get the current index value
@@ -142,10 +177,12 @@ function createSequenceControls(attributes){
             rangeslider.value = index;
             // Call update functions
             updatePropSymbols(attributes[index]);
-            updateLabel(attributes[index]);
+
+            document.querySelector("#legend-attribute").textContent = 
+                getCleanName(attributes[index]);
         })
     })
-};  
+}
 
 
 //  Process the data to extract the attributes.
@@ -194,8 +231,8 @@ function getData(){
             createPropSymbols(json, attributes);
             //call the function to create the slider.
             createSequenceControls(attributes);
-            //calls the uipdate label function.
-            updateLabel(attributes[0]);
+            //call legend function
+            createLegend(attributes);
         })
 };
 
