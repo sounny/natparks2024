@@ -1,10 +1,30 @@
 //declare map variable
 var map;
-
+//array for storing data statistics
+var dataStats = {};
 
 //function to calculate the radius of each proportional symbol
 function calcPropRadius(attValue) {
     return Math.pow(attValue, 0.3) * 0.15 + 4;
+}
+
+function calcStats(data, attributes) {
+    var allValues = [];
+
+    data.features.forEach(function(feature) {
+        attributes.forEach(function(att) {
+            var v = Number(feature.properties[att]);
+            if (!isNaN(v)) {
+                allValues.push(v);
+            }
+        });
+    });
+
+    dataStats.min = Math.min(...allValues);
+    dataStats.max = Math.max(...allValues);
+
+    var sum = allValues.reduce((a, b) => a + b, 0);
+    dataStats.mean = sum / allValues.length;
 }
 
 
@@ -84,6 +104,10 @@ function createPropSymbols(data, attributes){
 
 //Function to update the proportional symbols based on the selected attribute.
 function updatePropSymbols(attribute){
+    //update temporal legend
+    document.querySelector("span.year").innerHTML =
+    getCleanName("attributes");
+
     map.eachLayer(function(layer){
         if (layer.feature && layer.feature.properties[attribute]){
             //Get the properties for the feature
@@ -109,25 +133,51 @@ function createLegend(attributes){
         },
         onAdd: function () {
             var container = L.DomUtil.create('div', 'legend-control-container');
-            //add temporal legend div to container
-            container.innerHTML = `
-                <div id="legend-attribute" style="font-weight:bold; font-size:16px;"></div>
-            `;
-            // Legend dynamic value
-            container.insertAdjacentHTML(
-                "beforeend",
-                "<div id='legend-attribute' style='font-weight:bold;'></div>"
-            );
-            // Initialize with first attribute
-            container.querySelector("#legend-attribute").textContent =
-                getCleanName(attributes[0]);
-            //return containter div
+
+            container.innerHTML = 
+            '<p class="temporalLegend">Number of Recreational Visits <span class="year">Annual Total</span></p>';
+
+            var svg = '<svg id="attribute-legend" width="200px" height="60px">';
+
+            //array of circle names to base loop on
+            var circles = ["max", "mean", "min"];
+
+            // loop to add each circle and text to svg string  
+            for (var i = 0; i < circles.length; i++) {  
+
+                var circleName = circles[i];
+
+                //Step 3: assign the r and cy attributes  
+                var radius = calcPropRadius(dataStats[circleName]);  
+                var cy = 59 - radius;  
+
+                //circle string  
+                svg += '<circle class="legend-circle" id="' + circleName + 
+                    '" r="' + radius + '" cy="' + cy + 
+                    '" fill="#f8c20fff" fill-opacity="0.8" stroke="#af4600ff" cx="30"/>'; 
+
+                // label position           
+                var textY = i * 20 + 20;            
+
+                var formatted = Math.round(dataStats[circleName]).toLocaleString();
+
+                svg += '<text id="' + circleName + '-text" x="90" y="' + textY + '">' +
+                    formatted + '</text>';;
+            }
+
+            // close svg (IMPORTANT: OUTSIDE LOOP)
+            svg += "</svg>";
+
+            // insert once (IMPORTANT: OUTSIDE LOOP)
+            container.insertAdjacentHTML('beforeend', svg);
+
             return container;
         }
     });
 
     map.addControl(new LegendControl());
 }
+
 
 
 //Create new sequence controls
@@ -178,8 +228,9 @@ function createSequenceControls(attributes){
             // Call update functions
             updatePropSymbols(attributes[index]);
 
-            document.querySelector("#legend-attribute").textContent = 
+            document.querySelector("span.year").innerHTML =
                 getCleanName(attributes[index]);
+
         })
     })
 }
@@ -231,6 +282,8 @@ function getData(){
             createPropSymbols(json, attributes);
             //call the function to create the slider.
             createSequenceControls(attributes);
+            //calculate stats
+            calcStats(json, attributes);
             //call legend function
             createLegend(attributes);
         })
