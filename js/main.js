@@ -2,6 +2,10 @@
 var map;
 //array for storing data statistics
 var dataStats = {};
+//store park data globally for search and top 10
+var parkData = null;
+//store current attribute for Top 10 updates
+var currentAttribute = null;
 
 //function to calculate the radius of each proportional symbol
 function calcPropRadius(attValue) {
@@ -11,8 +15,8 @@ function calcPropRadius(attValue) {
 function calcStats(data, attributes) {
     var allValues = [];
 
-    data.features.forEach(function(feature) {
-        attributes.forEach(function(att) {
+    data.features.forEach(function (feature) {
+        attributes.forEach(function (att) {
             var v = Number(feature.properties[att]);
             if (!isNaN(v)) {
                 allValues.push(v);
@@ -29,7 +33,7 @@ function calcStats(data, attributes) {
 
 
 //Function to get a clean name for the attribute.
-function getCleanName(attribute){
+function getCleanName(attribute) {
     const att_labels = {
         "AnnualTota": "Annual Total",
         "JanuaryRec": "January",
@@ -51,7 +55,7 @@ function getCleanName(attribute){
 
 
 //Popup content constructor function.
-function PopupContent(properties, attribute){
+function PopupContent(properties, attribute) {
     this.properties = properties;
     this.attribute = attribute;
     this.parkname = properties.UNIT_NAME;
@@ -64,7 +68,7 @@ function PopupContent(properties, attribute){
 
 
 //Function to convert markers to circle markers
-function pointToLayer(feature, latlng, attributes){
+function pointToLayer(feature, latlng, attributes) {
     // Attribute to visualize with proportional symbols.
     var attribute = attributes[0];
     //Marker options
@@ -84,7 +88,7 @@ function pointToLayer(feature, latlng, attributes){
     var popupContent = new PopupContent(feature.properties, attribute);
     //bind the popup to the circle marker
     layer.bindPopup(popupContent.formatted, {
-        offset: new L.Point(0,-options.radius) 
+        offset: new L.Point(0, -options.radius)
     });
     //Return the circle marker to the L.geoJson pointToLayer option
     return layer;
@@ -92,10 +96,10 @@ function pointToLayer(feature, latlng, attributes){
 
 
 //Add circle markers for point features to the map
-function createPropSymbols(data, attributes){
+function createPropSymbols(data, attributes) {
     //create a Leaflet GeoJSON layer and add it to the map
     L.geoJson(data, {
-        pointToLayer: function(feature, latlng){
+        pointToLayer: function (feature, latlng) {
             return pointToLayer(feature, latlng, attributes);
         }
     }).addTo(map);
@@ -103,13 +107,13 @@ function createPropSymbols(data, attributes){
 
 
 //Function to update the proportional symbols based on the selected attribute.
-function updatePropSymbols(attribute){
+function updatePropSymbols(attribute) {
     //update temporal legend
     document.querySelector("span.year").innerHTML =
-    getCleanName("attributes");
+        getCleanName("attributes");
 
-    map.eachLayer(function(layer){
-        if (layer.feature && layer.feature.properties[attribute]){
+    map.eachLayer(function (layer) {
+        if (layer.feature && layer.feature.properties[attribute]) {
             //Get the properties for the feature
             var props = layer.feature.properties;
             // Calculate the new radius
@@ -118,7 +122,7 @@ function updatePropSymbols(attribute){
             //Create new popup content
             var popupContent = new PopupContent(props, attribute);
             //Update popup content
-            var popup = layer.getPopup();            
+            var popup = layer.getPopup();
             popup.setContent(popupContent.formatted).update();
         };
     });
@@ -126,7 +130,7 @@ function updatePropSymbols(attribute){
 
 
 //Create the legend control
-function createLegend(attributes){
+function createLegend(attributes) {
     var LegendControl = L.Control.extend({
         options: {
             position: 'bottomright'
@@ -134,8 +138,8 @@ function createLegend(attributes){
         onAdd: function () {
             var container = L.DomUtil.create('div', 'legend-control-container');
 
-            container.innerHTML = 
-            '<p class="temporalLegend">Number of Recreational Visits <span class="year">Annual Total</span></p>';
+            container.innerHTML =
+                '<p class="temporalLegend">Number of Recreational Visits <span class="year">Annual Total</span></p>';
 
             var svg = '<svg id="attribute-legend" width="200px" height="60px">';
 
@@ -143,21 +147,21 @@ function createLegend(attributes){
             var circles = ["max", "mean", "min"];
 
             // loop to add each circle and text to svg string  
-            for (var i = 0; i < circles.length; i++) {  
+            for (var i = 0; i < circles.length; i++) {
 
                 var circleName = circles[i];
 
                 //Step 3: assign the r and cy attributes  
-                var radius = calcPropRadius(dataStats[circleName]);  
-                var cy = 59 - radius;  
+                var radius = calcPropRadius(dataStats[circleName]);
+                var cy = 59 - radius;
 
                 //circle string  
-                svg += '<circle class="legend-circle" id="' + circleName + 
-                    '" r="' + radius + '" cy="' + cy + 
-                    '" fill="#f8c20fff" fill-opacity="0.8" stroke="#af4600ff" cx="30"/>'; 
+                svg += '<circle class="legend-circle" id="' + circleName +
+                    '" r="' + radius + '" cy="' + cy +
+                    '" fill="#f8c20fff" fill-opacity="0.8" stroke="#af4600ff" cx="30"/>';
 
                 // label position           
-                var textY = i * 20 + 20;            
+                var textY = i * 20 + 20;
 
                 var formatted = Math.round(dataStats[circleName]).toLocaleString();
 
@@ -181,16 +185,16 @@ function createLegend(attributes){
 
 
 //Create new sequence controls
-function createSequenceControls(attributes){   
+function createSequenceControls(attributes) {
     var SequenceControl = L.Control.extend({
         options: {
             position: 'bottomleft'
         },
-            onAdd: function () {
+        onAdd: function () {
             // create the control container div with a particular class name
             var container = L.DomUtil.create('div', 'sequence-control-container');
             //add elements to the container
-            container.insertAdjacentHTML('beforeend', '<button class="step" id="reverse" title="Reverse"><img src="img/reverse.png"></button>'); 
+            container.insertAdjacentHTML('beforeend', '<button class="step" id="reverse" title="Reverse"><img src="img/reverse.png"></button>');
             container.insertAdjacentHTML('beforeend', '<input class="range-slider" type="range">')
             container.insertAdjacentHTML('beforeend', '<button class="step" id="forward" title="Forward"><img src="img/forward.png"></button>');
             //disable any mouse event listeners for the container
@@ -200,44 +204,96 @@ function createSequenceControls(attributes){
         }
     });
     //add the sequence control to the map
-    map.addControl(new SequenceControl());  
+    map.addControl(new SequenceControl());
     //add functionality to the sequence control elements
     var rangeslider = document.querySelector(".range-slider");
     var reverseBtn = document.querySelector("#reverse");
     var forwardBtn = document.querySelector("#forward");
     //Event listener for the range slider
     rangeslider.max = attributes.length - 1;
-    rangeslider.min = 0; 
-    rangeslider.value = 0; 
+    rangeslider.min = 0;
+    rangeslider.value = 0;
     rangeslider.step = 1;
     //Input event for the range slider
-    document.querySelectorAll('.step').forEach(function(step){
-        step.addEventListener("click", function(){
+    document.querySelectorAll('.step').forEach(function (step) {
+        step.addEventListener("click", function () {
             //get the current index value
             var index = Number(rangeslider.value);
             //Update the index value based on button clicked
-            if (step.id == 'forward'){
+            if (step.id == 'forward') {
                 index++;
                 if (index > attributes.length - 1) index = 0;
-            } else if (step.id == 'reverse'){
+            } else if (step.id == 'reverse') {
                 index--;
                 if (index < 0) index = attributes.length - 1;
             };
             //Update slider position
             rangeslider.value = index;
             // Call update functions
+            currentAttribute = attributes[index];
             updatePropSymbols(attributes[index]);
 
             document.querySelector("span.year").innerHTML =
                 getCleanName(attributes[index]);
 
         })
-    })
+    });
+}
+
+// Create the search and Top 10 control (positioned below zoom controls)
+function createSearchControl() {
+    var SearchControl = L.Control.extend({
+        options: {
+            position: 'topleft'
+        },
+        onAdd: function () {
+            var container = L.DomUtil.create('div', 'search-control-container');
+
+            // Create search input with toggle button
+            container.insertAdjacentHTML('beforeend',
+                '<div id="search-container">' +
+                '<button id="search-toggle" title="Search Parks">' +
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path fill="none" d="M0 0h24v24H0z"/><path d="M18.031 16.617l4.283 4.282-1.415 1.415-4.282-4.283A8.96 8.96 0 0 1 11 20c-4.968 0-9-4.032-9-9s4.032-9 9-9 9 4.032 9 9a8.96 8.96 0 0 1-1.969 5.617zm-2.006-.742A6.977 6.977 0 0 0 18 11c0-3.868-3.133-7-7-7-3.868 0-7 3.132-7 7 0 3.867 3.132 7 7 7a6.977 6.977 0 0 0 4.875-1.975l.15-.15z" fill="currentColor"/></svg>' +
+                '</button>' +
+                '<input type="text" id="park-search" placeholder="Search parks..." autocomplete="off">' +
+                '<div id="search-results"></div>' +
+                '</div>');
+
+            // Create Top 10 button
+            container.insertAdjacentHTML('beforeend',
+                '<button class="top10-btn" id="top10-btn" title="Show Top 10 Parks">10</button>');
+
+            // Disable map interactions when interacting with control
+            L.DomEvent.disableClickPropagation(container);
+            L.DomEvent.disableScrollPropagation(container);
+
+            return container;
+        }
+    });
+
+    map.addControl(new SearchControl());
+
+    // Add search toggle event listener
+    document.querySelector('#search-toggle').addEventListener('click', function () {
+        var container = document.getElementById('search-container');
+        var input = document.getElementById('park-search');
+        container.classList.toggle('expanded');
+        if (container.classList.contains('expanded')) {
+            input.focus();
+        } else {
+            input.blur();
+        }
+    });
+
+    // Add Top 10 button event listener
+    document.querySelector('#top10-btn').addEventListener('click', function () {
+        showTop10Modal();
+    });
 }
 
 
 //  Process the data to extract the attributes.
-function processData(data){
+function processData(data) {
     //Initialize empty array to hold attributes
     var attributes = [];
     //List of months to check for in attribute names
@@ -269,15 +325,19 @@ function processData(data){
 
 
 //Step 2: Import GeoJSON data
-function getData(){
+function getData() {
     //load the data
     fetch("data/natparks.geojson")
-        .then(function(response){
+        .then(function (response) {
             return response.json();
         })
-        .then(function(json){
+        .then(function (json) {
+            //store park data globally
+            parkData = json;
             //create an attributes array
             var attributes = processData(json);
+            //set initial attribute
+            currentAttribute = attributes[0];
             //call function to create proportional symbols
             createPropSymbols(json, attributes);
             //call the function to create the slider.
@@ -286,12 +346,18 @@ function getData(){
             calcStats(json, attributes);
             //call legend function
             createLegend(attributes);
+            //create search control on map
+            createSearchControl();
+            //initialize search functionality
+            initializeSearch();
+            //initialize modal functionality
+            initializeModal();
         })
 };
 
 
 //function to instantiate the Leaflet map
-function createMap(){
+function createMap() {
     //create the map
     map = L.map('map', {
         center: [38, -97],
@@ -309,5 +375,233 @@ function createMap(){
 };
 
 
+// Initialize search autocomplete
+function initializeSearch() {
+    var searchInput = document.getElementById('park-search');
+    var searchResults = document.getElementById('search-results');
+    var selectedIndex = -1;
+
+    // Get all park names for autocomplete
+    var parks = parkData.features.map(function (feature) {
+        return {
+            name: feature.properties.UNIT_NAME,
+            type: feature.properties.UNIT_TYPE,
+            coords: feature.geometry.coordinates
+        };
+    });
+
+    // Sort parks alphabetically
+    parks.sort(function (a, b) {
+        return a.name.localeCompare(b.name);
+    });
+
+    // Search input event
+    searchInput.addEventListener('input', function () {
+        var query = this.value.toLowerCase().trim();
+        selectedIndex = -1;
+
+        if (query.length < 2) {
+            searchResults.classList.remove('active');
+            searchResults.innerHTML = '';
+            return;
+        }
+
+        // Filter parks
+        var matches = parks.filter(function (park) {
+            return park.name.toLowerCase().includes(query);
+        }).slice(0, 10); // Limit to 10 results
+
+        if (matches.length === 0) {
+            searchResults.classList.remove('active');
+            searchResults.innerHTML = '';
+            return;
+        }
+
+        // Build results HTML
+        var html = matches.map(function (park, index) {
+            return '<div class="search-result-item" data-index="' + index + '" data-lat="' + park.coords[1] + '" data-lng="' + park.coords[0] + '">' +
+                '<div class="park-name">' + highlightMatch(park.name, query) + '</div>' +
+                '<div class="park-type">' + park.type + '</div>' +
+                '</div>';
+        }).join('');
+
+        searchResults.innerHTML = html;
+        searchResults.classList.add('active');
+
+        // Add click handlers to results
+        searchResults.querySelectorAll('.search-result-item').forEach(function (item) {
+            item.addEventListener('click', function () {
+                var lat = parseFloat(this.dataset.lat);
+                var lng = parseFloat(this.dataset.lng);
+                selectPark(lat, lng, this.querySelector('.park-name').textContent);
+            });
+        });
+    });
+
+    // Keyboard navigation
+    searchInput.addEventListener('keydown', function (e) {
+        var items = searchResults.querySelectorAll('.search-result-item');
+
+        if (items.length === 0) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+            updateSelection(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectedIndex = Math.max(selectedIndex - 1, 0);
+            updateSelection(items);
+        } else if (e.key === 'Enter' && selectedIndex >= 0) {
+            e.preventDefault();
+            items[selectedIndex].click();
+        } else if (e.key === 'Escape') {
+            searchResults.classList.remove('active');
+            searchInput.blur();
+        }
+    });
+
+    function updateSelection(items) {
+        items.forEach(function (item, i) {
+            item.classList.toggle('selected', i === selectedIndex);
+        });
+        if (selectedIndex >= 0) {
+            items[selectedIndex].scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    function highlightMatch(text, query) {
+        var regex = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+        return text.replace(regex, '<strong style="color: #f8c20f;">$1</strong>');
+    }
+
+    function selectPark(lat, lng, name) {
+        // Close search results
+        searchResults.classList.remove('active');
+        searchInput.value = name;
+
+        // Fly to the park location
+        map.flyTo([lat, lng], 10, {
+            duration: 1.5
+        });
+
+        // Find and open the popup for this park
+        setTimeout(function () {
+            map.eachLayer(function (layer) {
+                if (layer.feature && layer.feature.properties.UNIT_NAME === name) {
+                    layer.openPopup();
+                }
+            });
+        }, 1600);
+    }
+
+    // Close search results when clicking outside
+    // Close search results and collapse bar when clicking outside
+    document.addEventListener('click', function (e) {
+        var container = document.getElementById('search-container');
+        if (container && !container.contains(e.target)) {
+            searchResults.classList.remove('active');
+            container.classList.remove('expanded');
+            searchInput.blur();
+        }
+    });
+}
+
+// Get Top 10 parks based on current attribute
+function getTop10Parks() {
+    if (!parkData || !currentAttribute) return [];
+
+    var parksWithVisits = parkData.features.map(function (feature) {
+        return {
+            name: feature.properties.UNIT_NAME,
+            type: feature.properties.UNIT_TYPE,
+            visits: feature.properties[currentAttribute] || 0,
+            coords: feature.geometry.coordinates
+        };
+    });
+
+    // Sort by visits descending
+    parksWithVisits.sort(function (a, b) {
+        return b.visits - a.visits;
+    });
+
+    return parksWithVisits.slice(0, 10);
+}
+
+// Show Top 10 Modal
+function showTop10Modal() {
+    var modal = document.getElementById('top10-modal');
+    var list = document.getElementById('top10-list');
+    var periodLabel = document.querySelector('.modal-period');
+
+    // Update period label
+    periodLabel.textContent = getCleanName(currentAttribute);
+
+    // Get top 10 parks
+    var top10 = getTop10Parks();
+
+    // Build list HTML
+    var html = top10.map(function (park, index) {
+        return '<li data-lat="' + park.coords[1] + '" data-lng="' + park.coords[0] + '" data-name="' + park.name + '">' +
+            '<strong>' + park.name + '</strong>' +
+            '<span class="park-visits">' + park.visits.toLocaleString() + ' visitors</span>' +
+            '</li>';
+    }).join('');
+
+    list.innerHTML = html;
+
+    // Add click handlers to list items
+    list.querySelectorAll('li').forEach(function (item) {
+        item.style.cursor = 'pointer';
+        item.addEventListener('click', function () {
+            var lat = parseFloat(this.dataset.lat);
+            var lng = parseFloat(this.dataset.lng);
+            var name = this.dataset.name;
+
+            // Close modal
+            modal.classList.remove('active');
+
+            // Fly to park
+            map.flyTo([lat, lng], 10, { duration: 1.5 });
+
+            // Open popup
+            setTimeout(function () {
+                map.eachLayer(function (layer) {
+                    if (layer.feature && layer.feature.properties.UNIT_NAME === name) {
+                        layer.openPopup();
+                    }
+                });
+            }, 1600);
+        });
+    });
+
+    modal.classList.add('active');
+}
+
+// Initialize modal functionality
+function initializeModal() {
+    var modal = document.getElementById('top10-modal');
+    var closeBtn = document.querySelector('.close-btn');
+
+    // Close modal when clicking X
+    closeBtn.addEventListener('click', function () {
+        modal.classList.remove('active');
+    });
+
+    // Close modal when clicking outside
+    modal.addEventListener('click', function (e) {
+        if (e.target === modal) {
+            modal.classList.remove('active');
+        }
+    });
+
+    // Close modal with Escape key
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+            modal.classList.remove('active');
+        }
+    });
+}
+
 //Call the createMap function when the DOM is loaded
-document.addEventListener('DOMContentLoaded',createMap)
+document.addEventListener('DOMContentLoaded', createMap)
